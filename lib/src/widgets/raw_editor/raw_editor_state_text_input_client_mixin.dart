@@ -142,7 +142,8 @@ mixin RawEditorStateTextInputClientMixin on EditorState
       /// side and when we see this same value appear here we skip it.
       /// This is fragile but it's probably the only available option.
       _sentRemoteValues.remove(value);
-      return;
+      //TrAnd: this isn't relevant for iOS and Android and skips important updates
+      //return;
     }
 
     if (_lastKnownRemoteTextEditingValue == value) {
