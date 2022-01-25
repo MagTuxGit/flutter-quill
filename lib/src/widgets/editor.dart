@@ -6,9 +6,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:tuple/tuple.dart';
 
 import '../models/documents/document.dart';
 import '../models/documents/nodes/container.dart' as container_node;
+import '../models/documents/style.dart';
 import '../utils/platform.dart';
 import 'box.dart';
 import 'controller.dart';
@@ -47,6 +49,10 @@ abstract class EditorState extends State<RawEditor>
   RenderEditor get renderEditor;
 
   EditorTextSelectionOverlay? get selectionOverlay;
+
+  List<Tuple2<int, Style>> get pasteStyle;
+
+  String get pastePlainText;
 
   /// Controls the floating cursor animation when it is released.
   /// The floating cursor is animated to merge with the regular cursor.
@@ -368,10 +374,10 @@ class QuillEditor extends StatefulWidget {
   final bool floatingCursorDisabled;
 
   @override
-  _QuillEditorState createState() => _QuillEditorState();
+  QuillEditorState createState() => QuillEditorState();
 }
 
-class _QuillEditorState extends State<QuillEditor>
+class QuillEditorState extends State<QuillEditor>
     implements EditorTextSelectionGestureDetectorBuilderDelegate {
   final GlobalKey<EditorState> _editorKey = GlobalKey<EditorState>();
   late EditorTextSelectionGestureDetectorBuilder
@@ -488,7 +494,7 @@ class _QuillEditorSelectionGestureDetectorBuilder
   _QuillEditorSelectionGestureDetectorBuilder(this._state)
       : super(delegate: _state);
 
-  final _QuillEditorState _state;
+  final QuillEditorState _state;
 
   @override
   void onForcePressStart(ForcePressDetails details) {
@@ -1229,8 +1235,25 @@ class RenderEditor extends RenderEditableContainerBox
   /// The offset is the distance from the top of the editor and is the minimum
   /// from the current scroll position until [selection] becomes visible.
   /// Returns null if [selection] is already visible.
+  ///
+  /// Finds the closest scroll offset that fully reveals the editing cursor.
+  ///
+  /// The `scrollOffset` parameter represents current scroll offset in the
+  /// parent viewport.
+  ///
+  /// The `offsetInViewport` parameter represents the editor's vertical offset
+  /// in the parent viewport. This value should normally be 0.0 if this editor
+  /// is the only child of the viewport or if it's the topmost child. Otherwise
+  /// it should be a positive value equal to total height of all siblings of
+  /// this editor from above it.
+  ///
+  /// Returns `null` if the cursor is currently visible.
   double? getOffsetToRevealCursor(
       double viewportHeight, double scrollOffset, double offsetInViewport) {
+    // Endpoints coordinates represents lower left or lower right corner of
+    // the selection. If we want to scroll up to reveal the caret we need to
+    // adjust the dy value by the height of the line. We also add a small margin
+    // so that the caret is not too close to the edge of the viewport.
     final endpoints = getEndpointsForSelection(selection);
 
     // when we drag the right handle, we should get the last point
@@ -1247,6 +1270,7 @@ class RenderEditor extends RenderEditableContainerBox
       }
     }
 
+    // Collapsed selection => caret
     final child = childAtPosition(selection.extent);
     const kMargin = 8.0;
 
@@ -1267,6 +1291,7 @@ class RenderEditor extends RenderEditableContainerBox
     if (dy == null) {
       return null;
     }
+    // Clamping to 0.0 so that the content does not jump unnecessarily.
     return math.max(dy, 0);
   }
 

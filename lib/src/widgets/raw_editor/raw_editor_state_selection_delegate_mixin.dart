@@ -24,6 +24,20 @@ mixin RawEditorStateSelectionDelegateMixin on EditorState
 
     widget.controller.replaceText(
         diff.start, diff.deleted.length, insertedText, value.selection);
+
+    if (insertedText == pastePlainText && pastePlainText != '') {
+      final pos = diff.start;
+      for (var i = 0; i < pasteStyle.length; i++) {
+        final offset = pasteStyle[i].item1;
+        final style = pasteStyle[i].item2;
+        widget.controller.formatTextStyle(
+            pos + offset,
+            i == pasteStyle.length - 1
+                ? pastePlainText.length - offset
+                : pasteStyle[i + 1].item1,
+            style);
+      }
+    }
   }
 
   String _adjustInsertedText(String text) {
