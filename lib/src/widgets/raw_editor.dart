@@ -15,6 +15,7 @@ import 'package:tuple/tuple.dart';
 import '../models/documents/attribute.dart';
 import '../models/documents/document.dart';
 import '../models/documents/nodes/block.dart';
+import '../models/documents/nodes/embeddable.dart';
 import '../models/documents/nodes/line.dart';
 import '../models/documents/nodes/node.dart';
 import '../models/documents/style.dart';
@@ -25,6 +26,7 @@ import 'default_styles.dart';
 import 'delegate.dart';
 import 'editor.dart';
 import 'embeds/default_embed_builder.dart';
+import 'embeds/image.dart';
 import 'keyboard_listener.dart';
 import 'link.dart';
 import 'proxy.dart';
@@ -404,8 +406,23 @@ class RawEditorState extends EditorState
   /// by changing its attribute according to [value].
   void _handleCheckboxTap(int offset, bool value) {
     if (!widget.readOnly) {
-      widget.controller.formatText(
-          offset, 0, value ? Attribute.checked : Attribute.unchecked);
+      _disableScrollControllerAnimateOnce = true;
+      final attribute = value ? Attribute.checked : Attribute.unchecked;
+
+      widget.controller.formatText(offset, 0, attribute);
+
+      // Checkbox tapping causes controller.selection to go to offset 0
+      // Stop toggling those two toolbar buttons
+      widget.controller.toolbarButtonToggler = {
+        Attribute.list.key: attribute,
+        Attribute.header.key: Attribute.header
+      };
+
+      // Go back from offset 0 to current selection
+      SchedulerBinding.instance!.addPostFrameCallback((_) {
+        widget.controller.updateSelection(
+            TextSelection.collapsed(offset: offset), ChangeSource.LOCAL);
+      });
     }
   }
 
@@ -759,6 +776,13 @@ class RawEditorState extends EditorState
 
   bool _showCaretOnScreenScheduled = false;
 
+  // This is a workaround for checkbox tapping issue
+  // https://github.com/singerdmx/flutter-quill/issues/619
+  // We cannot treat {"list": "checked"} and {"list": "unchecked"} as
+  // block of the same style
+  // This causes controller.selection to go to offset 0
+  bool _disableScrollControllerAnimateOnce = false;
+
   void _showCaretOnScreen() {
     if (!widget.showCursor || _showCaretOnScreenScheduled) {
       return;
@@ -785,6 +809,10 @@ class RawEditorState extends EditorState
         );
 
         if (offset != null) {
+          if (_disableScrollControllerAnimateOnce) {
+            _disableScrollControllerAnimateOnce = false;
+            return;
+          }
           _scrollController.animateTo(
             math.min(offset, _scrollController.position.maxScrollExtent),
             duration: const Duration(milliseconds: 100),
@@ -854,6 +882,7 @@ class RawEditorState extends EditorState
 
   @override
   void copySelection(SelectionChangedCause cause) {
+    widget.controller.copiedImageUrl = null;
     _pastePlainText = widget.controller.getPlainText();
     _pasteStyle = widget.controller.getAllIndividualSelectionStyles();
     // Copied straight from EditableTextState
@@ -878,8 +907,10 @@ class RawEditorState extends EditorState
 
   @override
   void cutSelection(SelectionChangedCause cause) {
+    widget.controller.copiedImageUrl = null;
     _pastePlainText = widget.controller.getPlainText();
     _pasteStyle = widget.controller.getAllIndividualSelectionStyles();
+
     // Copied straight from EditableTextState
     super.cutSelection(cause);
     if (cause == SelectionChangedCause.toolbar) {
@@ -890,8 +921,26 @@ class RawEditorState extends EditorState
 
   @override
   Future<void> pasteText(SelectionChangedCause cause) async {
+    if (widget.controller.copiedImageUrl != null) {
+      final index = textEditingValue.selection.baseOffset;
+      final length = textEditingValue.selection.extentOffset - index;
+      final copied = widget.controller.copiedImageUrl!;
+      widget.controller
+          .replaceText(index, length, BlockEmbed.image(copied.item1), null);
+      if (copied.item2.isNotEmpty) {
+        widget.controller.formatText(
+            getImageNode(widget.controller, index + 1).item1,
+            1,
+            StyleAttribute(copied.item2));
+      }
+      widget.controller.copiedImageUrl = null;
+      await Clipboard.setData(const ClipboardData(text: ''));
+      return;
+    }
+
     // Copied straight from EditableTextState
     super.pasteText(cause); // ignore: unawaited_futures
+
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar();

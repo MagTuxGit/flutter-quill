@@ -1,3 +1,48 @@
+# [3.9.9]
+* iOS: Save image whose filename does not end with image file extension.
+
+# [3.9.8]
+* Added Urdu translation.
+
+# [3.9.7]
+* Fix for clicking on the Link button without any text on a new line crashes.
+
+# [3.9.6]
+* Apply locale to QuillEditor(contents).
+
+# [3.9.5]
+* Fix image pasting.
+
+# [3.9.4]
+* Hiding dialog after selecting action for image.
+
+# [3.9.3]
+* Update ImageResizer for Android.
+
+# [3.9.2]
+* Copy image with its style.
+
+# [3.9.1]
+* Support resizing image.
+
+# [3.9.0]
+* Image menu options for copy/remove.
+
+# [3.8.8]
+* Update set textEditingValue.
+
+# [3.8.7]
+* Fix checkbox not toggled correctly in toolbar button.
+
+# [3.8.6]
+* Fix cursor position changes when checking/unchecking the checkbox.
+
+# [3.8.5]
+* Fix _handleDragUpdate in _TextSelectionHandleOverlayState.
+
+# [3.8.4]
+* Fix link dialog layout.
+
 # [3.8.3]
 * Fix for errors on a non scrollable editor.
 
