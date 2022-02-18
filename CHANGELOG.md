@@ -1,3 +1,9 @@
+# [4.0.1]
+* Fix copy/cut/paste/selectAll not working.
+
+# [4.0.0]
+* Upgrade for Flutter 2.10.
+
 # [3.9.11]
 * Added Indonesian translation.
 
