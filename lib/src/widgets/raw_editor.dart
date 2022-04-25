@@ -577,12 +577,35 @@ class RawEditorState extends EditorState
               _onChangeTextEditingValue(!_hasFocus);
             }
           });
+
+          HardwareKeyboard.instance.addHandler(_hardwareKeyboardEvent);
         }
       });
     }
 
     // Focus
     widget.focusNode.addListener(_handleFocusChanged);
+  }
+
+  // KeyboardVisibilityController only checks for keyboards that
+  // adjust the screen size. Also watch for hardware keyboards
+  // that don't alter the screen (i.e. Chromebook, Android tablet
+  // and any hardware keyboards from an OS not listed in isKeyboardOS())
+  bool _hardwareKeyboardEvent(KeyEvent _) {
+    if (!_keyboardVisible) {
+      // hardware keyboard key pressed. Set visibility to true
+      _keyboardVisible = true;
+      // update the editor
+      _onChangeTextEditingValue(!_hasFocus);
+    }
+
+    // remove the key handler - it's no longer needed. If
+    // KeyboardVisibilityController clears visibility, it wil
+    // also enable it when appropriate.
+    HardwareKeyboard.instance.removeHandler(_hardwareKeyboardEvent);
+
+    // we didn't handle the event, just needed to know a key was pressed
+    return false;
   }
 
   @override
@@ -657,6 +680,7 @@ class RawEditorState extends EditorState
   void dispose() {
     closeConnectionIfNeeded();
     _keyboardVisibilitySubscription?.cancel();
+    HardwareKeyboard.instance.removeHandler(_hardwareKeyboardEvent);
     assert(!hasConnection);
     _selectionOverlay?.dispose();
     _selectionOverlay = null;
@@ -735,10 +759,10 @@ class RawEditorState extends EditorState
 
   void _updateOrDisposeSelectionOverlayIfNeeded() {
     if (_selectionOverlay != null) {
-      if (!_hasFocus) {
+      if (!_hasFocus || textEditingValue.selection.isCollapsed) {
         _selectionOverlay!.dispose();
         _selectionOverlay = null;
-      } else if (!textEditingValue.selection.isCollapsed) {
+      } else {
         _selectionOverlay!.update(textEditingValue);
       }
     } else if (_hasFocus) {
@@ -905,10 +929,6 @@ class RawEditorState extends EditorState
 
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
-      // on iOS, Safari does not hide the selection after copy
-      // however, most other iOS apps do as well as other platforms
-      // so we'll hide toolbar & selection after copy
-      hideToolbar(false);
 
       // Collapse the selection and hide the toolbar and handles.
       userUpdateTextEditingValue(
@@ -984,13 +1004,17 @@ class RawEditorState extends EditorState
     _replaceText(
         ReplaceTextIntent(textEditingValue, data.text!, selection, cause));
 
-    if (cause == SelectionChangedCause.toolbar) {
-      try {
-        // ignore exception when paste window is at end of document
-        bringIntoView(textEditingValue.selection.extent);
-      } catch (_) {}
-      hideToolbar();
-    }
+    bringIntoView(textEditingValue.selection.extent);
+
+    // Collapse the selection and hide the toolbar and handles.
+    userUpdateTextEditingValue(
+      TextEditingValue(
+        text: textEditingValue.text,
+        selection:
+            TextSelection.collapsed(offset: textEditingValue.selection.end),
+      ),
+      cause,
+    );
   }
 
   /// Select the entire text value.
