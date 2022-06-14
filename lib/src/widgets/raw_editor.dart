@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -19,6 +18,7 @@ import '../models/documents/nodes/embeddable.dart';
 import '../models/documents/nodes/line.dart';
 import '../models/documents/nodes/node.dart';
 import '../models/documents/style.dart';
+import '../utils/delta.dart';
 import '../utils/platform.dart';
 import 'controller.dart';
 import 'cursor.dart';
@@ -411,6 +411,8 @@ class RawEditorState extends EditorState
   void _handleCheckboxTap(int offset, bool value) {
     if (!widget.readOnly) {
       _disableScrollControllerAnimateOnce = true;
+      widget.controller.ignoreFocusOnTextChange = true;
+      final currentSelection = widget.controller.selection.copyWith();
       final attribute = value ? Attribute.checked : Attribute.unchecked;
 
       widget.controller.formatText(offset, 0, attribute);
@@ -423,9 +425,9 @@ class RawEditorState extends EditorState
       };
 
       // Go back from offset 0 to current selection
-      SchedulerBinding.instance!.addPostFrameCallback((_) {
-        widget.controller.updateSelection(
-            TextSelection.collapsed(offset: offset), ChangeSource.LOCAL);
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        widget.controller.ignoreFocusOnTextChange = false;
+        widget.controller.updateSelection(currentSelection, ChangeSource.LOCAL);
       });
     }
   }
@@ -436,7 +438,8 @@ class RawEditorState extends EditorState
     for (final node in doc.root.children) {
       if (node is Line) {
         final editableTextLine = _getEditableTextLineFromNode(node, context);
-        result.add(editableTextLine);
+        result.add(Directionality(
+            textDirection: getDirectionOfNode(node), child: editableTextLine));
       } else if (node is Block) {
         final attrs = node.style.attributes;
         final editableTextBlock = EditableTextBlock(
@@ -461,7 +464,8 @@ class RawEditorState extends EditorState
             onCheckboxTap: _handleCheckboxTap,
             readOnly: widget.readOnly,
             customStyleBuilder: widget.customStyleBuilder);
-        result.add(editableTextBlock);
+        result.add(Directionality(
+            textDirection: getDirectionOfNode(node), child: editableTextBlock));
       } else {
         throw StateError('Unreachable.');
       }
@@ -502,7 +506,12 @@ class RawEditorState extends EditorState
       Line line, DefaultStyles? defaultStyles) {
     final attrs = line.style.attributes;
     if (attrs.containsKey(Attribute.header.key)) {
-      final int? level = attrs[Attribute.header.key]!.value;
+      int level;
+      if (attrs[Attribute.header.key]!.value is double) {
+        level = attrs[Attribute.header.key]!.value.toInt();
+      } else {
+        level = attrs[Attribute.header.key]!.value;
+      }
       switch (level) {
         case 1:
           return defaultStyles!.h1!.verticalSpacing;
@@ -575,12 +584,35 @@ class RawEditorState extends EditorState
               _onChangeTextEditingValue(!_hasFocus);
             }
           });
+
+          HardwareKeyboard.instance.addHandler(_hardwareKeyboardEvent);
         }
       });
     }
 
     // Focus
     widget.focusNode.addListener(_handleFocusChanged);
+  }
+
+  // KeyboardVisibilityController only checks for keyboards that
+  // adjust the screen size. Also watch for hardware keyboards
+  // that don't alter the screen (i.e. Chromebook, Android tablet
+  // and any hardware keyboards from an OS not listed in isKeyboardOS())
+  bool _hardwareKeyboardEvent(KeyEvent _) {
+    if (!_keyboardVisible) {
+      // hardware keyboard key pressed. Set visibility to true
+      _keyboardVisible = true;
+      // update the editor
+      _onChangeTextEditingValue(!_hasFocus);
+    }
+
+    // remove the key handler - it's no longer needed. If
+    // KeyboardVisibilityController clears visibility, it wil
+    // also enable it when appropriate.
+    HardwareKeyboard.instance.removeHandler(_hardwareKeyboardEvent);
+
+    // we didn't handle the event, just needed to know a key was pressed
+    return false;
   }
 
   @override
@@ -655,6 +687,7 @@ class RawEditorState extends EditorState
   void dispose() {
     closeConnectionIfNeeded();
     _keyboardVisibilitySubscription?.cancel();
+    HardwareKeyboard.instance.removeHandler(_hardwareKeyboardEvent);
     assert(!hasConnection);
     _selectionOverlay?.dispose();
     _selectionOverlay = null;
@@ -691,6 +724,8 @@ class RawEditorState extends EditorState
         });
       }
     }
+
+    _adjacentLineAction.stopCurrentVerticalRunIfSelectionChanges();
   }
 
   void _onChangeTextEditingValue([bool ignoreCaret = false]) {
@@ -715,7 +750,7 @@ class RawEditorState extends EditorState
     // a new RenderEditableBox child. If we try to update selection overlay
     // immediately it'll not be able to find the new child since it hasn't been
     // built yet.
-    SchedulerBinding.instance!.addPostFrameCallback((_) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
       }
@@ -731,10 +766,10 @@ class RawEditorState extends EditorState
 
   void _updateOrDisposeSelectionOverlayIfNeeded() {
     if (_selectionOverlay != null) {
-      if (!_hasFocus) {
+      if (!_hasFocus || textEditingValue.selection.isCollapsed) {
         _selectionOverlay!.dispose();
         _selectionOverlay = null;
-      } else if (!textEditingValue.selection.isCollapsed) {
+      } else {
         _selectionOverlay!.update(textEditingValue);
       }
     } else if (_hasFocus) {
@@ -761,10 +796,10 @@ class RawEditorState extends EditorState
         _hasFocus, widget.controller.selection);
     _updateOrDisposeSelectionOverlayIfNeeded();
     if (_hasFocus) {
-      WidgetsBinding.instance!.addObserver(this);
+      WidgetsBinding.instance.addObserver(this);
       _showCaretOnScreen();
     } else {
-      WidgetsBinding.instance!.removeObserver(this);
+      WidgetsBinding.instance.removeObserver(this);
     }
     updateKeepAlive();
   }
@@ -779,7 +814,7 @@ class RawEditorState extends EditorState
 
   Future<LinkMenuAction> _linkActionPicker(Node linkNode) async {
     final link = linkNode.style.attributes[Attribute.link.key]!.value!;
-    return widget.linkActionPickerDelegate(context, link);
+    return widget.linkActionPickerDelegate(context, link, linkNode);
   }
 
   bool _showCaretOnScreenScheduled = false;
@@ -797,7 +832,7 @@ class RawEditorState extends EditorState
     }
 
     _showCaretOnScreenScheduled = true;
-    SchedulerBinding.instance!.addPostFrameCallback((_) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
       if (widget.scrollable || _scrollController.hasClients) {
         _showCaretOnScreenScheduled = false;
 
@@ -868,6 +903,14 @@ class RawEditorState extends EditorState
     if (kIsWeb) {
       return false;
     }
+
+    // selectionOverlay is aggressively released when selection is collapsed
+    // to remove unnecessary handles. Since a toolbar is requested here,
+    // attempt to create the selectionOverlay if it's not already created.
+    if (_selectionOverlay == null) {
+      _updateOrDisposeSelectionOverlayIfNeeded();
+    }
+
     if (_selectionOverlay == null || _selectionOverlay!.toolbar != null) {
       return false;
     }
@@ -901,19 +944,16 @@ class RawEditorState extends EditorState
 
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
-      hideToolbar(false);
 
-      if (!Platform.isIOS) {
-        // Collapse the selection and hide the toolbar and handles.
-        userUpdateTextEditingValue(
-          TextEditingValue(
-            text: textEditingValue.text,
-            selection:
-                TextSelection.collapsed(offset: textEditingValue.selection.end),
-          ),
-          SelectionChangedCause.toolbar,
-        );
-      }
+      // Collapse the selection and hide the toolbar and handles.
+      userUpdateTextEditingValue(
+        TextEditingValue(
+          text: textEditingValue.text,
+          selection:
+              TextSelection.collapsed(offset: textEditingValue.selection.end),
+        ),
+        SelectionChangedCause.toolbar,
+      );
     }
   }
 
@@ -979,10 +1019,17 @@ class RawEditorState extends EditorState
     _replaceText(
         ReplaceTextIntent(textEditingValue, data.text!, selection, cause));
 
-    if (cause == SelectionChangedCause.toolbar) {
-      bringIntoView(textEditingValue.selection.extent);
-      hideToolbar();
-    }
+    bringIntoView(textEditingValue.selection.extent);
+
+    // Collapse the selection and hide the toolbar and handles.
+    userUpdateTextEditingValue(
+      TextEditingValue(
+        text: textEditingValue.text,
+        selection:
+            TextSelection.collapsed(offset: textEditingValue.selection.end),
+      ),
+      cause,
+    );
   }
 
   /// Select the entire text value.
@@ -1126,6 +1173,18 @@ class RawEditorState extends EditorState
     PasteTextIntent: _makeOverridable(CallbackAction<PasteTextIntent>(
         onInvoke: (intent) => pasteText(intent.cause))),
   };
+
+  @override
+  void insertTextPlaceholder(Size size) {
+    // this is needed for Scribble (Stylus input) in Apple platforms
+    // and this package does not implement this feature
+  }
+
+  @override
+  void removeTextPlaceholder() {
+    // this is needed for Scribble (Stylus input) in Apple platforms
+    // and this package does not implement this feature
+  }
 }
 
 class _Editor extends MultiChildRenderObjectWidget {
