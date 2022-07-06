@@ -347,6 +347,8 @@ class Document {
     }
   }
 
+  static const String startSymbol = ' ';
+
   bool isEmpty() {
     if (root.children.length != 1) {
       return false;
@@ -359,7 +361,7 @@ class Document {
 
     final delta = node.toDelta();
     return delta.length == 1 &&
-        (delta.first.data == '​\n' || delta.first.data == '\n') &&
+        (delta.first.data == '$startSymbol\n' || delta.first.data == '\n') &&
         delta.first.key == 'insert';
   }
 }
