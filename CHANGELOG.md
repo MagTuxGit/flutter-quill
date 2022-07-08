@@ -1,3 +1,15 @@
+# [5.0.3]
+* Update dependencies.
+
+# [5.0.2]
+* Keep cursor position on checkbox tap.
+
+# [5.0.1]
+* Fix static analysis errors.
+
+# [5.0.0]
+* Flutter 3.0.0 support.
+
 # [4.2.3]
 * Ignore color:inherit and convert double to int for level.
 
