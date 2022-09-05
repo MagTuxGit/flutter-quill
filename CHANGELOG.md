@@ -1,3 +1,38 @@
+# [6.0.0] BREAKING CHANGE
+* Removed embed (image, video & forumla) blocks from the package to reduce app size.
+
+These blocks have been moved to the package `flutter_quill_extensions`, migrate by filling the `embedBuilders` and `embedButtons` parameters as follows:
+
+```
+import 'package:flutter_quill_extensions/flutter_quill_extensions.dart';
+
+QuillEditor.basic(
+  controller: controller,
+  embedBuilders: FlutterQuillEmbeds.builders(),
+);
+
+QuillToolbar.basic(
+  controller: controller,
+  embedButtons: FlutterQuillEmbeds.buttons(),
+);
+```
+
+
+# [5.4.2]
+* Upgrade i18n_extension.
+
+# [5.4.1]
+* Update German Translation. 
+
+# [5.4.0]
+* Added Formula Button (for maths support).
+
+# [5.3.2]
+* Add more font family.
+
+# [5.3.1]
+* Enable search when text is not empty.
+
 # [5.3.0]
 * Added search function.
 
