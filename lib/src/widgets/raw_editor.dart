@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:rich_clipboard/rich_clipboard.dart';
 import 'package:tuple/tuple.dart';
 
 import '../models/documents/attribute.dart';
@@ -1022,10 +1023,13 @@ class RawEditorState extends EditorState
     }
     // Snapshot the input before using `await`.
     // See https://github.com/flutter/flutter/issues/11427
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (data == null) {
+    //final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final data = await RichClipboard.getData();
+    if (data.html == null && data.text == null) {
       return;
     }
+    final pasteSuccess = controller.pasteHtmlData(data.html, data.text);
+    if (pasteSuccess) return;
 
     _replaceText(
         ReplaceTextIntent(textEditingValue, data.text!, selection, cause));
