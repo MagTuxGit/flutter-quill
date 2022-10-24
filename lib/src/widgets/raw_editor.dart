@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+// ignore: unnecessary_import
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +11,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:pasteboard/pasteboard.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
 import 'package:tuple/tuple.dart';
 
@@ -73,7 +76,8 @@ class RawEditor extends StatefulWidget {
       this.scrollPhysics,
       this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
       this.customStyleBuilder,
-      this.floatingCursorDisabled = false})
+      this.floatingCursorDisabled = false,
+      this.onImagePaste})
       : assert(maxHeight == null || maxHeight > 0, 'maxHeight cannot be null'),
         assert(minHeight == null || minHeight >= 0, 'minHeight cannot be null'),
         assert(maxHeight == null || minHeight == null || maxHeight >= minHeight,
@@ -219,6 +223,8 @@ class RawEditor extends StatefulWidget {
   ///
   /// See [Scrollable.physics].
   final ScrollPhysics? scrollPhysics;
+
+  final Future<String?> Function(Uint8List imageBytes)? onImagePaste;
 
   /// Builder function for embeddable objects.
   final EmbedsBuilder embedBuilder;
@@ -1023,28 +1029,55 @@ class RawEditorState extends EditorState
     }
     // Snapshot the input before using `await`.
     // See https://github.com/flutter/flutter/issues/11427
-    //final data = await Clipboard.getData(Clipboard.kTextPlain);
+
+    /// - start TrAnd insert
     final data = await RichClipboard.getData();
     if (data.html == null && data.text == null) {
       return;
     }
     final pasteSuccess = controller.pasteHtmlData(data.html, data.text);
     if (pasteSuccess) return;
+    /// - end TrAnd insert
 
-    _replaceText(
-        ReplaceTextIntent(textEditingValue, data.text!, selection, cause));
+    final text = await Clipboard.getData(Clipboard.kTextPlain);
+    if (text != null) {
+      _replaceText(
+          ReplaceTextIntent(textEditingValue, text.text!, selection, cause));
 
-    bringIntoView(textEditingValue.selection.extent);
+      bringIntoView(textEditingValue.selection.extent);
 
-    // Collapse the selection and hide the toolbar and handles.
-    userUpdateTextEditingValue(
-      TextEditingValue(
-        text: textEditingValue.text,
-        selection:
-            TextSelection.collapsed(offset: textEditingValue.selection.end),
-      ),
-      cause,
-    );
+      // Collapse the selection and hide the toolbar and handles.
+      userUpdateTextEditingValue(
+        TextEditingValue(
+          text: textEditingValue.text,
+          selection:
+              TextSelection.collapsed(offset: textEditingValue.selection.end),
+        ),
+        cause,
+      );
+
+      return;
+    }
+
+    if (widget.onImagePaste != null) {
+      final image = await Pasteboard.image;
+
+      if (image == null) {
+        return;
+      }
+
+      final imageUrl = await widget.onImagePaste!(image);
+      if (imageUrl == null) {
+        return;
+      }
+
+      controller.replaceText(
+        textEditingValue.selection.end,
+        0,
+        BlockEmbed.image(imageUrl),
+        null,
+      );
+    }
   }
 
   /// Select the entire text value.
@@ -1204,11 +1237,6 @@ class RawEditorState extends EditorState
   void removeTextPlaceholder() {
     // this is needed for Scribble (Stylus input) in Apple platforms
     // and this package does not implement this feature
-  }
-
-  @override
-  void performSelector(String selectorName) {
-    // TODO: implement performSelector
   }
 }
 

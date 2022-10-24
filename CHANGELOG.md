@@ -1,3 +1,33 @@
+# [6.0.10]
+* Upgrade device info plus to ^7.0.0.
+
+# [6.0.9]
+* Don't throw showAutocorrectionPromptRect not implemented. The function is called with every keystroke as a user is typing.
+
+# [6.0.8+1]
+* Fixes null pointer when setting documents.
+
+# [6.0.8]
+* Make QuillController.document mutable.
+
+# [6.0.7]
+* Allow disabling of selection toolbar.
+
+# [6.0.6+1]
+* Revert 6.0.6.
+
+# [6.0.6]
+* Fix wrong custom embed key.
+
+# [6.0.5]
+* Fixes toolbar buttons stealing focus from editor.
+
+# [6.0.4]
+* Bug fix for Type 'Uint8List' not found.
+
+# [6.0.3]
+* Add ability to paste images.
+
 # [6.0.2]
 * Address Dart Analysis issues.
 

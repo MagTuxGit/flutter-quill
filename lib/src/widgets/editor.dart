@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+// ignore: unnecessary_import
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -155,6 +157,7 @@ class QuillEditor extends StatefulWidget {
       this.paintCursorAboveText,
       this.placeholder,
       this.enableInteractiveSelection = true,
+      this.enableSelectionToolbar = true,
       this.scrollBottomInset = 0,
       this.minHeight,
       this.maxHeight,
@@ -175,6 +178,7 @@ class QuillEditor extends StatefulWidget {
       this.locale,
       this.floatingCursorDisabled = false,
       this.textSelectionControls,
+      this.onImagePaste,
       Key? key})
       : super(key: key);
 
@@ -263,7 +267,13 @@ class QuillEditor extends StatefulWidget {
   /// When this is false, the text selection cannot be adjusted by
   /// the user, text cannot be copied, and the user cannot paste into
   /// the text field from the clipboard.
+  ///
+  /// To disable just the selection toolbar, set enableSelectionToolbar
+  /// to false.
   final bool enableInteractiveSelection;
+
+  /// Whether to show the cut/copy/paste menu when selecting text.
+  final bool enableSelectionToolbar;
 
   /// The minimum height to be occupied by this editor.
   ///
@@ -377,6 +387,11 @@ class QuillEditor extends StatefulWidget {
   /// will be used
   final TextSelectionControls? textSelectionControls;
 
+  /// Callback when the user pastes the given image.
+  ///
+  /// Returns the url of the image if the image should be inserted.
+  final Future<String?> Function(Uint8List imageBytes)? onImagePaste;
+
   @override
   QuillEditorState createState() => QuillEditorState();
 }
@@ -427,6 +442,9 @@ class QuillEditorState extends State<QuillEditor>
           theme.colorScheme.primary.withOpacity(0.40);
     }
 
+    final showSelectionToolbar =
+        widget.enableInteractiveSelection && widget.enableSelectionToolbar;
+
     final child = RawEditor(
       key: _editorKey,
       controller: widget.controller,
@@ -439,10 +457,10 @@ class QuillEditorState extends State<QuillEditor>
       placeholder: widget.placeholder,
       onLaunchUrl: widget.onLaunchUrl,
       toolbarOptions: ToolbarOptions(
-        copy: widget.enableInteractiveSelection,
-        cut: widget.enableInteractiveSelection,
-        paste: widget.enableInteractiveSelection,
-        selectAll: widget.enableInteractiveSelection,
+        copy: showSelectionToolbar,
+        cut: showSelectionToolbar,
+        paste: showSelectionToolbar,
+        selectAll: showSelectionToolbar,
       ),
       showSelectionHandles: isMobile(theme.platform),
       showCursor: widget.showCursor,
@@ -472,33 +490,12 @@ class QuillEditorState extends State<QuillEditor>
         controller,
         node,
         readOnly,
-      ) {
-        final builders = widget.embedBuilders;
-
-        if (builders != null) {
-          var _node = node;
-
-          // Creates correct node for custom embed
-          if (node.value.type == BlockEmbed.customType) {
-            _node = Embed(CustomBlockEmbed.fromJsonString(node.value.data));
-          }
-
-          for (final builder in builders) {
-            if (builder.key == _node.value.type) {
-              return builder.build(context, controller, _node, readOnly);
-            }
-          }
-        }
-
-        throw UnimplementedError(
-          'Embeddable type "${node.value.type}" is not supported by supplied '
-          'embed builders. You must pass your own builder function to '
-          'embedBuilders property of QuillEditor or QuillField widgets.',
-        );
-      },
+      ) =>
+          _buildCustomBlockEmbed(node, context, controller, readOnly),
       linkActionPickerDelegate: widget.linkActionPickerDelegate,
       customStyleBuilder: widget.customStyleBuilder,
       floatingCursorDisabled: widget.floatingCursorDisabled,
+      onImagePaste: widget.onImagePaste,
     );
 
     final editor = I18n(
@@ -526,6 +523,32 @@ class QuillEditorState extends State<QuillEditor>
     }
 
     return editor;
+  }
+
+  Widget _buildCustomBlockEmbed(Embed node, BuildContext context,
+      QuillController controller, bool readOnly) {
+    final builders = widget.embedBuilders;
+
+    if (builders != null) {
+      var _node = node;
+
+      // Creates correct node for custom embed
+      if (node.value.type == BlockEmbed.customType) {
+        _node = Embed(CustomBlockEmbed.fromJsonString(node.value.data));
+      }
+
+      for (final builder in builders) {
+        if (builder.key == _node.value.type) {
+          return builder.build(context, controller, _node, readOnly);
+        }
+      }
+    }
+
+    throw UnimplementedError(
+      'Embeddable type "${node.value.type}" is not supported by supplied '
+      'embed builders. You must pass your own builder function to '
+      'embedBuilders property of QuillEditor or QuillField widgets.',
+    );
   }
 
   @override
