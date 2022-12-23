@@ -1,3 +1,12 @@
+# [6.1.7]
+* Add czech localizations.
+
+# [6.1.6]
+* Upgrade i18n_extension to 6.0.0.
+
+# [6.1.5]
+* Fix formatting exception.
+
 # [6.1.4]
 * Add double quotes validation.
 
