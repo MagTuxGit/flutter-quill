@@ -326,6 +326,9 @@ class RawEditorState extends EditorState
 
   TextDirection get _textDirection => Directionality.of(context);
 
+  @override
+  void insertContent(KeyboardInsertedContent content) {}
+
   /// Returns the [ContextMenuButtonItem]s representing the buttons in this
   /// platform's default selection menu for [RawEditor].
   ///
@@ -1720,7 +1723,7 @@ class RawEditorState extends EditorState
 }
 
 class _Editor extends MultiChildRenderObjectWidget {
-  _Editor({
+  const _Editor({
     required Key key,
     required List<Widget> children,
     required this.document,
