@@ -1,3 +1,19 @@
+# [7.2.2]
+- Prevent operations on stale editor state.
+
+# [7.2.1]
+- Add support for android keyboard content insertion.
+- Enhance color picker, enter hex color and color palette option.
+
+# [7.2.0]
+- Checkboxes, bullet points, and number points are now scaled based on the default paragraph font size.
+
+# [7.1.20]
+- Pass linestyle to embedded block.
+
+# [7.1.19]
+- Fix Rtl leading alignment problem.
+
 # [7.1.18]
 - Support flutter latest version.
 
