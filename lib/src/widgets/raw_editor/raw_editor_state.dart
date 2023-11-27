@@ -19,6 +19,7 @@ import 'package:flutter/services.dart'
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart'
     show KeyboardVisibilityController;
 import 'package:pasteboard/pasteboard.dart' show Pasteboard;
+import 'package:rich_clipboard/rich_clipboard.dart';
 
 import '../../models/documents/attribute.dart';
 import '../../models/documents/document.dart';
@@ -1352,31 +1353,36 @@ class QuillRawEditorState extends EditorState
     }
     // Snapshot the input before using `await`.
     // See https://github.com/flutter/flutter/issues/11427
-    final text = await Clipboard.getData(Clipboard.kTextPlain);
-    if (text != null) {
-      _replaceText(
-        ReplaceTextIntent(
-          textEditingValue,
-          text.text!,
-          selection,
-          cause,
-        ),
-      );
+    final clipboardData = await RichClipboard.getData();
+    if (clipboardData.html != null || clipboardData.text != null) {
+      final pasteSuccess =
+          controller.pasteHtmlData(clipboardData.html, clipboardData.text);
+      if (pasteSuccess) return;
 
-      bringIntoView(textEditingValue.selection.extent);
-
-      // Collapse the selection and hide the toolbar and handles.
-      userUpdateTextEditingValue(
-        TextEditingValue(
-          text: textEditingValue.text,
-          selection: TextSelection.collapsed(
-            offset: textEditingValue.selection.end,
+      if (clipboardData.text != null) {
+        _replaceText(
+          ReplaceTextIntent(
+            textEditingValue,
+            clipboardData.text!,
+            selection,
+            cause,
           ),
-        ),
-        cause,
-      );
+        );
 
-      return;
+        bringIntoView(textEditingValue.selection.extent);
+
+        // Collapse the selection and hide the toolbar and handles.
+        userUpdateTextEditingValue(
+          TextEditingValue(
+            text: textEditingValue.text,
+            selection: TextSelection.collapsed(
+              offset: textEditingValue.selection.end,
+            ),
+          ),
+          cause,
+        );
+        return;
+      }
     }
 
     final onImagePaste = widget.configurations.onImagePaste;

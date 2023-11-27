@@ -16,6 +16,7 @@ import '../utils/delta.dart';
 
 typedef ReplaceTextCallback = bool Function(int index, int len, Object? data);
 typedef DeleteCallback = void Function(int cursorPosition, bool forward);
+typedef PasteDataCallback = bool Function(String? html, String? text);
 
 class QuillController extends ChangeNotifier {
   QuillController({
@@ -23,6 +24,7 @@ class QuillController extends ChangeNotifier {
     required TextSelection selection,
     bool keepStyleOnNewLine = false,
     this.onReplaceText,
+    this.onPasteData,
     this.onDelete,
     this.onSelectionCompleted,
     this.onSelectionChanged,
@@ -62,6 +64,10 @@ class QuillController extends ChangeNotifier {
   /// Custom [replaceText] handler
   /// Return false to ignore the event
   ReplaceTextCallback? onReplaceText;
+
+  /// Custom pasteText handler
+  /// Return true to ignore the event
+  PasteDataCallback? onPasteData;
 
   /// Custom delete handler
   DeleteCallback? onDelete;
@@ -290,6 +296,9 @@ class QuillController extends ChangeNotifier {
     notifyListeners();
     ignoreFocusOnTextChange = false;
   }
+
+  bool pasteHtmlData(String? html, String? text) =>
+      onPasteData != null && onPasteData!(html, text);
 
   /// Called in two cases:
   /// forward == false && textBefore.isEmpty
