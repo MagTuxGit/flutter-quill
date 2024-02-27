@@ -18,6 +18,7 @@ import '../toolbar/buttons/toggle_style_button.dart';
 
 typedef ReplaceTextCallback = bool Function(int index, int len, Object? data);
 typedef DeleteCallback = void Function(int cursorPosition, bool forward);
+typedef PasteDataCallback = bool Function(String? html);
 
 class QuillController extends ChangeNotifier {
   QuillController({
@@ -25,6 +26,7 @@ class QuillController extends ChangeNotifier {
     required TextSelection selection,
     this.keepStyleOnNewLine = true,
     this.onReplaceText,
+    this.onPasteData,
     this.onDelete,
     this.onSelectionCompleted,
     this.onSelectionChanged,
@@ -112,6 +114,10 @@ class QuillController extends ChangeNotifier {
   /// Custom [replaceText] handler
   /// Return false to ignore the event
   ReplaceTextCallback? onReplaceText;
+
+  /// Custom pasteText handler
+  /// Return true to ignore the event
+  PasteDataCallback? onPasteData;
 
   /// Custom delete handler
   DeleteCallback? onDelete;
@@ -352,6 +358,8 @@ class QuillController extends ChangeNotifier {
     }
     ignoreFocusOnTextChange = false;
   }
+
+  bool pasteHtmlData(String? html) => onPasteData != null && onPasteData!(html);
 
   /// Called in two cases:
   /// forward == false && textBefore.isEmpty

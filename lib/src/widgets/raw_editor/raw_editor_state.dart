@@ -219,6 +219,10 @@ class QuillRawEditorState extends EditorState
         if (html == null) {
           return;
         }
+
+        final pasteSuccess = controller.pasteHtmlData(html);
+        if (pasteSuccess) return;
+
         final htmlBody = html_parser.parse(html).body?.outerHtml;
         final deltaFromClipboard = DeltaX.fromHtml(htmlBody ?? html);
 
