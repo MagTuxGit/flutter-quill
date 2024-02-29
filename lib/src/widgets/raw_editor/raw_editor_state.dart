@@ -214,14 +214,17 @@ class QuillRawEditorState extends EditorState
 
     if (clipboard != null) {
       final reader = await clipboard.read();
+      final html = await reader.readValue(Formats.htmlText);
+      final text = await reader.readValue(Formats.plainText);
+
+      final pasteSuccess = controller.pasteHtmlData(html, text);
+      if (pasteSuccess) return;
+
       if (reader.canProvide(Formats.htmlText)) {
-        final html = await reader.readValue(Formats.htmlText);
+        //final html = await reader.readValue(Formats.htmlText);
         if (html == null) {
           return;
         }
-
-        final pasteSuccess = controller.pasteHtmlData(html);
-        if (pasteSuccess) return;
 
         final htmlBody = html_parser.parse(html).body?.outerHtml;
         final deltaFromClipboard = DeltaX.fromHtml(htmlBody ?? html);
