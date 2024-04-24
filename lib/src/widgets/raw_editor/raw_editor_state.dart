@@ -217,7 +217,7 @@ class QuillRawEditorState extends EditorState
       final html = await reader.readValue(Formats.htmlText);
       final text = await reader.readValue(Formats.plainText);
 
-      final pasteSuccess = controller.pasteHtmlData(html, text);
+      final pasteSuccess = await controller.pasteHtmlData(html, text);
       if (pasteSuccess) return;
 
       if (reader.canProvide(Formats.htmlText)) {
