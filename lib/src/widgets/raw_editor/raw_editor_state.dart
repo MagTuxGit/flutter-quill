@@ -213,44 +213,46 @@ class QuillRawEditorState extends EditorState
     final clipboard = SystemClipboard.instance;
 
     if (clipboard != null) {
-      final reader = await clipboard.read();
-      final html = await reader.readValue(Formats.htmlText);
-      final text = await reader.readValue(Formats.plainText);
+      try {
+        final reader = await clipboard.read();
+        final html = await reader.readValue(Formats.htmlText);
+        final text = await reader.readValue(Formats.plainText);
 
-      final pasteSuccess = await controller.pasteHtmlData(html, text);
-      if (pasteSuccess) return;
+        final pasteSuccess = await controller.pasteHtmlData(html, text);
+        if (pasteSuccess) return;
 
-      if (reader.canProvide(Formats.htmlText)) {
-        //final html = await reader.readValue(Formats.htmlText);
-        if (html == null) {
+        if (reader.canProvide(Formats.htmlText)) {
+          //final html = await reader.readValue(Formats.htmlText);
+          if (html == null) {
+            return;
+          }
+
+          final htmlBody = html_parser.parse(html).body?.outerHtml;
+          final deltaFromClipboard = DeltaX.fromHtml(htmlBody ?? html);
+
+          controller.replaceText(
+            textEditingValue.selection.start,
+            textEditingValue.selection.end - textEditingValue.selection.start,
+            deltaFromClipboard,
+            TextSelection.collapsed(offset: textEditingValue.selection.end),
+          );
+
+          bringIntoView(textEditingValue.selection.extent);
+
+          // Collapse the selection and hide the toolbar and handles.
+          userUpdateTextEditingValue(
+            TextEditingValue(
+              text: textEditingValue.text,
+              selection: TextSelection.collapsed(
+                offset: textEditingValue.selection.end,
+              ),
+            ),
+            cause,
+          );
+
           return;
         }
-
-        final htmlBody = html_parser.parse(html).body?.outerHtml;
-        final deltaFromClipboard = DeltaX.fromHtml(htmlBody ?? html);
-
-        controller.replaceText(
-          textEditingValue.selection.start,
-          textEditingValue.selection.end - textEditingValue.selection.start,
-          deltaFromClipboard,
-          TextSelection.collapsed(offset: textEditingValue.selection.end),
-        );
-
-        bringIntoView(textEditingValue.selection.extent);
-
-        // Collapse the selection and hide the toolbar and handles.
-        userUpdateTextEditingValue(
-          TextEditingValue(
-            text: textEditingValue.text,
-            selection: TextSelection.collapsed(
-              offset: textEditingValue.selection.end,
-            ),
-          ),
-          cause,
-        );
-
-        return;
-      }
+      } catch (_) {}
     }
 
     // Snapshot the input before using `await`.
