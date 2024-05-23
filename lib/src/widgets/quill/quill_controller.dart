@@ -13,6 +13,7 @@ import '../../utils/delta.dart';
 
 typedef ReplaceTextCallback = bool Function(int index, int len, Object? data);
 typedef DeleteCallback = void Function(int cursorPosition, bool forward);
+typedef PasteDataCallback = Future<bool> Function(String? html, String? text);
 
 class QuillController extends ChangeNotifier {
   QuillController({
@@ -21,6 +22,7 @@ class QuillController extends ChangeNotifier {
     this.configurations = const QuillControllerConfigurations(),
     this.keepStyleOnNewLine = true,
     this.onReplaceText,
+    this.onPasteData,
     this.onDelete,
     this.onSelectionCompleted,
     this.onSelectionChanged,
@@ -83,6 +85,10 @@ class QuillController extends ChangeNotifier {
   /// Custom [replaceText] handler
   /// Return false to ignore the event
   ReplaceTextCallback? onReplaceText;
+
+  /// Custom pasteText handler
+  /// Return true to ignore the event
+  PasteDataCallback? onPasteData;
 
   /// Custom delete handler
   DeleteCallback? onDelete;
@@ -310,6 +316,10 @@ class QuillController extends ChangeNotifier {
     ignoreFocusOnTextChange = false;
   }
 
+  Future<bool> pasteHtmlData(String? html, String? text) async {
+    return onPasteData != null && (await onPasteData!(html, text));
+  }
+
   /// Called in two cases:
   /// forward == false && textBefore.isEmpty
   /// forward == true && textAfter.isEmpty
@@ -472,6 +482,7 @@ class QuillController extends ChangeNotifier {
   static List<OffsetValue> _pasteStyleAndEmbed = <OffsetValue>[];
 
   String get pastePlainText => _pastePlainText;
+
   List<OffsetValue> get pasteStyleAndEmbed => _pasteStyleAndEmbed;
   bool readOnly;
 
@@ -479,6 +490,7 @@ class QuillController extends ChangeNotifier {
   FocusNode? editorFocusNode;
 
   ImageUrl? _copiedImageUrl;
+
   ImageUrl? get copiedImageUrl => _copiedImageUrl;
 
   set copiedImageUrl(ImageUrl? value) {
@@ -540,24 +552,33 @@ class QuillController extends ChangeNotifier {
   Future<bool> _pasteHTML() async {
     final clipboard = SystemClipboard.instance;
     if (clipboard != null) {
-      final reader = await clipboard.read();
-      if (reader.canProvide(Formats.htmlText)) {
+      try {
+        final reader = await clipboard.read();
         final html = await reader.readValue(Formats.htmlText);
-        if (html == null) {
-          return false;
+        final text = await reader.readValue(Formats.plainText);
+
+        final pasteSuccess = await pasteHtmlData(html, text);
+        if (pasteSuccess) return true;
+
+        if (reader.canProvide(Formats.htmlText)) {
+          //final html = await reader.readValue(Formats.htmlText);
+          if (html == null) {
+            return false;
+          }
+
+          final htmlBody = html_parser.parse(html).body?.outerHtml;
+          final deltaFromClipboard = DeltaX.fromHtml(htmlBody ?? html);
+
+          replaceText(
+            selection.start,
+            selection.end - selection.start,
+            deltaFromClipboard,
+            TextSelection.collapsed(offset: selection.end),
+          );
+
+          return true;
         }
-        final htmlBody = html_parser.parse(html).body?.outerHtml;
-        final deltaFromClipboard = DeltaX.fromHtml(htmlBody ?? html);
-
-        replaceText(
-          selection.start,
-          selection.end - selection.start,
-          deltaFromClipboard,
-          TextSelection.collapsed(offset: selection.end),
-        );
-
-        return true;
-      }
+      } catch (_) {}
     }
     return false;
   }

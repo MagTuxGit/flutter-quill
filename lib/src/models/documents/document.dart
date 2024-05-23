@@ -458,7 +458,7 @@ class Document {
 
     final delta = node.toDelta();
     return delta.length == 1 &&
-        delta.first.data == '\n' &&
+        (delta.first.data == '\n' || delta.first.data == ' \n') &&
         delta.first.key == 'insert';
   }
 
