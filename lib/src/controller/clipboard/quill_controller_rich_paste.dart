@@ -3,6 +3,7 @@ library;
 
 // This file should not be exported as the APIs in it are meant for internal usage only
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show TextSelection;
 import 'package:html/parser.dart' as html_parser;
 import 'package:meta/meta.dart';
@@ -35,6 +36,11 @@ extension QuillControllerRichPaste on QuillController {
 
     final htmlText = await getHTML();
     if (htmlText != null) {
+      /// custom callback
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      final pasteSuccess = await pasteHtmlData(html, clipboardData?.text);
+      if (pasteSuccess) return true;
+
       final htmlBody = html_parser.parse(htmlText).body?.outerHtml;
       // ignore: deprecated_member_use_from_same_package
       final clipboardDelta = DeltaX.fromHtml(htmlBody ?? htmlText);

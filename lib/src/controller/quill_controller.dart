@@ -24,6 +24,7 @@ import 'quill_controller_config.dart';
 
 typedef ReplaceTextCallback = bool Function(int index, int len, Object? data);
 typedef DeleteCallback = void Function(int cursorPosition, bool forward);
+typedef PasteDataCallback = Future<bool> Function(String? html, String? text);
 
 class QuillController extends ChangeNotifier {
   QuillController({
@@ -32,6 +33,7 @@ class QuillController extends ChangeNotifier {
     this.config = const QuillControllerConfig(),
     this.keepStyleOnNewLine = true,
     this.onReplaceText,
+    this.onPasteData,
     this.onDelete,
     this.onSelectionCompleted,
     this.onSelectionChanged,
@@ -99,6 +101,10 @@ class QuillController extends ChangeNotifier {
   /// Custom [replaceText] handler
   /// Return false to ignore the event
   ReplaceTextCallback? onReplaceText;
+
+  /// Custom pasteText handler
+  /// Return true to ignore the event
+  PasteDataCallback? onPasteData;
 
   /// Custom delete handler
   DeleteCallback? onDelete;
@@ -335,6 +341,10 @@ class QuillController extends ChangeNotifier {
       notifyListeners();
     }
     ignoreFocusOnTextChange = false;
+  }
+
+  Future<bool> pasteHtmlData(String? html, String? text) async {
+    return onPasteData != null && (await onPasteData!(html, text));
   }
 
   /// Called in two cases:
