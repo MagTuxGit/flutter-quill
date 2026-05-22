@@ -52,8 +52,7 @@ class _HomePageState extends State<HomePage> {
           }
           // Save the image somewhere and return the image URL that will be
           // stored in the Quill Delta JSON (the document).
-          final newFileName =
-              'image-file-${DateTime.now().toIso8601String()}.png';
+          final newFileName = 'image-file-${DateTime.now().toIso8601String()}.png';
           final newPath = path.join(
             io.Directory.systemTemp.path,
             newFileName,
@@ -86,9 +85,8 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.output),
             tooltip: 'Print Delta JSON to log',
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content:
-                      Text('The JSON Delta has been printed to the console.')));
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('The JSON Delta has been printed to the console.')));
               debugPrint(jsonEncode(_controller.document.toDelta().toJson()));
             },
           ),
@@ -125,11 +123,8 @@ class _HomePageState extends State<HomePage> {
                 buttonOptions: QuillSimpleToolbarButtonOptions(
                   base: QuillToolbarBaseButtonOptions(
                     afterButtonPressed: () {
-                      final isDesktop = {
-                        TargetPlatform.linux,
-                        TargetPlatform.windows,
-                        TargetPlatform.macOS
-                      }.contains(defaultTargetPlatform);
+                      final isDesktop = {TargetPlatform.linux, TargetPlatform.windows, TargetPlatform.macOS}
+                          .contains(defaultTargetPlatform);
                       if (isDesktop) {
                         _editorFocusNode.requestFocus();
                       }
@@ -199,8 +194,7 @@ class TimeStampEmbed extends Embeddable {
 
   static const String timeStampType = 'timeStamp';
 
-  static TimeStampEmbed fromDocument(Document document) =>
-      TimeStampEmbed(jsonEncode(document.toDelta().toJson()));
+  static TimeStampEmbed fromDocument(Document document) => TimeStampEmbed(jsonEncode(document.toDelta().toJson()));
 
   Document get document => Document.fromJson(jsonDecode(data));
 }
