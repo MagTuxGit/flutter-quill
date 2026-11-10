@@ -1091,7 +1091,19 @@ class RenderEditableTextLine extends RenderEditableBox {
       );
     }
     final boxes = _getBoxes(textSelection);
-    assert(boxes.isNotEmpty);
+    if (boxes.isEmpty) {
+      // The selection covers nothing the paragraph lays out a box for (e.g. a
+      // stale range right after the line's text changed, before relayout).
+      // Fall back to the caret at the matching end instead of crashing.
+      final position = TextPosition(
+        offset: first ? textSelection.start : textSelection.end,
+        affinity: textSelection.affinity,
+      );
+      return TextSelectionPoint(
+        Offset(0, preferredLineHeight(position)) + getOffsetForCaret(position),
+        null,
+      );
+    }
     final targetBox = first ? boxes.first : boxes.last;
     return TextSelectionPoint(
       Offset(first ? targetBox.start : targetBox.end, targetBox.bottom),
