@@ -1,5 +1,4 @@
 import 'dart:async' show StreamSubscription, Timer;
-import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:math' as math;
 import 'dart:ui' as ui hide TextStyle;
 
@@ -415,7 +414,6 @@ class QuillRawEditorState extends EditorState
 
     var doc = controller.document;
     if (doc.isEmpty() && widget.config.placeholder != null) {
-      final raw = widget.config.placeholder?.replaceAll(r'"', '\\"');
       // get current block attributes applied to the first line even if it
       // is empty
       final blockAttributesWithoutContent = doc.root.children.firstOrNull
@@ -428,14 +426,21 @@ class QuillRawEditorState extends EditorState
           blockAttributesWithoutContent?.containsKey('code-block') ?? false;
       // we add the block attributes at the same time as the placeholder to allow the editor to display them without removing
       // the placeholder (this is really awkward when everything is empty)
-      final blockAttrInsertion = blockAttributesWithoutContent == null
-          ? ''
-          : ',{"insert":"\\n","attributes":${jsonEncode(blockAttributesWithoutContent)}}';
-      doc = Document.fromJson(
-        jsonDecode(
-          '[{"attributes":{"placeholder":true},"insert":"${isCodeBlock ? '// ' : ''}$raw${blockAttrInsertion.isEmpty ? '\\n' : ''}"}$blockAttrInsertion]',
-        ),
-      );
+      // Built as a list, not as JSON text: a placeholder with a line break or a
+      // backslash used to produce invalid JSON and crash the build
+      // ("FormatException: Control character in string").
+      final placeholder =
+          '${isCodeBlock ? '// ' : ''}${widget.config.placeholder}';
+      doc = Document.fromJson([
+        {
+          'attributes': {'placeholder': true},
+          'insert': blockAttributesWithoutContent == null
+              ? '$placeholder\n'
+              : placeholder,
+        },
+        if (blockAttributesWithoutContent != null)
+          {'insert': '\n', 'attributes': blockAttributesWithoutContent},
+      ]);
     }
 
     if (!widget.config.disableClipboard) {
