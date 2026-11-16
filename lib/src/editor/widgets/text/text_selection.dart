@@ -822,6 +822,9 @@ class _EditorTextSelectionGestureDetectorState
   // when selection handles are being dragged, so update during the next build
   void _dragOffsetListener() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // The detector may be gone by the next frame (e.g. the editor closed
+      // mid-drag); its context is null then.
+      if (!mounted) return;
       Offset? position;
 
       final globalPosition = widget.dragOffsetNotifier?.value;
@@ -831,11 +834,9 @@ class _EditorTextSelectionGestureDetectorState
         position = renderBox.globalToLocal(globalPosition);
       }
 
-      if (mounted) {
-        setState(() {
-          _magnifierPosition = position;
-        });
-      }
+      setState(() {
+        _magnifierPosition = position;
+      });
     });
   }
 
