@@ -63,7 +63,7 @@ class _ScribbleFocusableState extends State<ScribbleFocusable>
 
   RenderBox? get _renderBoxForBounds {
     final box = widget.renderBoxForBounds();
-    if (box == null || !mounted || !box.attached) {
+    if (box == null || !mounted || !box.attached || !box.hasSize) {
       return null;
     }
     return box;
@@ -109,7 +109,9 @@ class _ScribbleFocusableState extends State<ScribbleFocusable>
   @override
   Rect get bounds {
     final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !mounted || !box.attached) {
+    // Scribble asks every registered element for its bounds, including one
+    // that hasn't been laid out yet: reading its size would throw.
+    if (box == null || !mounted || !box.attached || !box.hasSize) {
       return Rect.zero;
     }
     final transform = box.getTransformTo(null);
